@@ -1,41 +1,45 @@
-import { Server } from 'socket.io';
+var socketIO = require('socket.io');
 
-const io = new Server(9000, {
+var io = new socketIO(9000, {
     cors: {
-        origin: 'http://localhost:3000',
-    }, 
-})
+        origin: 'http://localhost:3000'
+    }
+});
 
-let users = [];
+var users = [];
 
-const addUser = (userData, socketId) => {
-    !users.some(user => user.sub === userData.sub) && users.push({ ...userData, socketId });
-}
-const removeUser = (socketId) => {
-    users = users.filter(user => user.socketId !== socketId);
-}
+var addUser = function(userData, socketId) {
+    if (!users.some(function(user) { return user.sub === userData.sub; })) {
+        users.push(Object.assign({}, userData, { socketId: socketId }));
+    }
+};
 
-const getUser = (userId) => {
-    return users.find(user => user.sub === userId);
-}
+var removeUser = function(socketId) {
+    users = users.filter(function(user) { return user.socketId !== socketId; });
+};
 
-io.on('connection',  (socket) => {
-    console.log('user connected')
-    // connect
-    socket.on("addUser", userData => {
+var getUser = function(userId) {
+    return users.find(function(user) { return user.sub === userId; });
+};
+
+io.on('connection', function(socket) {
+    console.log('user connected');
+
+    socket.on("addUser", function(userData) {
         addUser(userData, socket.id);
         io.emit("getUsers", users);
-    })
-      //send message
-      socket.on('sendMessage', (data) => {
-        const user = getUser(data.receiverId);
-        io.to(user.socketId).emit('getMessage', data)
-    })
+    });
 
-    //disconnect
-    socket.on('disconnect', () => {
+    socket.on('sendMessage', function(data) {
+        var user = getUser(data.receiverId);
+        io.to(user.socketId).emit('getMessage', data);
+    });
+
+    socket.on('disconnect', function() {
         console.log('user disconnected');
         removeUser(socket.id);
         io.emit('getUsers', users);
-    })
-})
+    });
+});
+
+module.exports = io;
